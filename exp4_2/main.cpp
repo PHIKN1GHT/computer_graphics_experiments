@@ -1,16 +1,25 @@
 //#include <bits/stdc++.h>
 #include <GL/glut.h>
+#include <cstdio>
+#include <cstring>
 #include <list>
+#include <map>
 
-int iPointNum = 0;
+int iPointNum = 0, ploygonMode = 0;
 int px = 0, py = 0;
 std::list<std::pair<GLint, GLint> > pointList;
 std::pair<GLint, GLint> startPoint;
 std::pair<GLint, GLint> endPoint;
 int winWidth = 400, winHeight = 300;
+char mask[32][32];
+int maskSize = 32;
 
 void Initial() {
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	memset(mask, 0, sizeof(mask));
+	for (int i = 0; i < 32; i++)
+		for (int j = 0; j < 32; j++)
+			mask[i][j] = ((i % maskSize) ^ (j % maskSize)) < (maskSize >> 1);
 }
 
 void ChangeSize(int w, int h) {
@@ -21,13 +30,24 @@ void ChangeSize(int w, int h) {
 	gluOrtho2D(0.0, winWidth, 0.0, winHeight);
 }
 
+std::map<int, int> lp, rp;
 void Display() {
 	glClear(GL_COLOR_BUFFER_BIT);
 	glColor3f(1.0f, 0.0f, 0.0f);
 	glBegin(GL_POINTS);
+	lp.clear(), rp.clear();
 	if (pointList.size() > 0)
-		for (std::pair<GLint, GLint> p : pointList)
-			glVertex2i(p.first, p.second);
+		for (std::pair<GLint, GLint> p : pointList) 
+			glVertex2i(p.first, p.second),
+			lp[p.second] = lp.count(p.second) ? std::min(lp[p.second] == 0 ? 0x3fffffff : lp[p.second], p.first) : p.first,
+			rp[p.second] = lp.count(p.second) ? std::max(rp[p.second], p.first) : p.first;
+	glEnd();
+	glBegin(GL_POINTS);
+	if (!ploygonMode) {
+		for (auto k : lp)
+			for (int i = k.second; i < rp[k.first]; i++)
+				if (mask[i % 32][k.first % 32]) glVertex2i(i, k.first);
+	}
 	glEnd();
 	glutSwapBuffers();
 }
@@ -46,14 +66,14 @@ void MousePlot(GLint button, GLint action,GLint xMouse, GLint yMouse) {
 }
 
 void GenerateEclipse() {
-	long double a = abs((endPoint.first - startPoint.first) / 2), b = abs((endPoint.second - startPoint.second ) / 2);
+	long long a = abs((endPoint.first - startPoint.first) / 2), b = abs((endPoint.second - startPoint.second ) / 2);
 	std::pair<GLint, GLint> center = std::pair<GLint, GLint> {
 		startPoint.first + (endPoint.first - startPoint.first) / 2,
 		startPoint.second + (endPoint.second - startPoint.second ) / 2
 	};
-	long double d; long long   x = 0, y = b;
+	long double d; long long x = 0, y = b;
 
-	d = b * b + a * a * (-y +0.25);
+	d = b * b + a * a * (y - 0.5);
 	while (b * b * (x + 1) < a * a * (y - 0.5)) {
 		if (d <= 0)
 			d += b * b * (2*x+3), x++;
@@ -87,7 +107,7 @@ void PassiveMouseMove (GLint xMouse, GLint yMouse) {
 }
 
 void ProcessMenu(int value) {
-	if (value == 1) pointList.clear();
+	ploygonMode = value;
 }
 
 int main(int argc,char ** argv) {
@@ -97,7 +117,8 @@ int main(int argc,char ** argv) {
 	glutInitWindowPosition(100,100);
 	glutCreateWindow("COMPUTER GRAPHICS 10170940");
 	glutCreateMenu(ProcessMenu);
-	glutAddMenuEntry("Clear", 1);
+	glutAddMenuEntry("Mask", 0);
+	glutAddMenuEntry("NoMask", 1);
 	glutAttachMenu(GLUT_RIGHT_BUTTON);
 	glutDisplayFunc(Display);
 	glutReshapeFunc(ChangeSize);
@@ -107,17 +128,3 @@ int main(int argc,char ** argv) {
 	glutMainLoop();
 	return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
